@@ -1,0 +1,814 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Trello Class Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: sticky header with section links and a language switch, then stacked sections.
+   The practice board is the opener: five Kanban lanes that scroll sideways on phones. */
+:root {
+  --bg: #edf0f4;
+  --surface: #ffffff;
+  --lane: #dde3eb;
+  --ink: #17212c;
+  --muted: #536173;
+  --line: #c6cfdb;
+  --accent: #2b59d3;
+  --accent-ink: #ffffff;
+  --ok: #1b7a4f;
+  --warn: #9c560a;
+  --bad: #b23434;
+  --l-research: #b88c05;
+  --l-front: #2b6dd3;
+  --l-back: #1e8657;
+  --l-bug: #c13b3b;
+  --l-docs: #7549bd;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141b; --surface: #1a212b; --lane: #141a22; --ink: #e6ebf1; --muted: #9ba8b8; --line: #2b3542;
+    --accent: #84a6ff; --accent-ink: #0c1320; --ok: #52c58e; --warn: #e3a356; --bad: #f07d7d;
+    --l-research: #e3bb3a; --l-front: #6c9cf0; --l-back: #4cbf88; --l-bug: #ee7474; --l-docs: #a987e6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141b; --surface: #1a212b; --lane: #141a22; --ink: #e6ebf1; --muted: #9ba8b8; --line: #2b3542;
+  --accent: #84a6ff; --accent-ink: #0c1320; --ok: #52c58e; --warn: #e3a356; --bad: #f07d7d;
+  --l-research: #e3bb3a; --l-front: #6c9cf0; --l-back: #4cbf88; --l-bug: #ee7474; --l-docs: #a987e6;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--surface);
+}
+.wrap {
+  max-width: 1180px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* Header */
+header.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+header.top .wrap {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; padding-block: 10px;
+}
+.brand { font-family: var(--font-display); font-weight: 750; font-size: 18px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+.brand svg { flex: none; }
+nav.sections { display: flex; flex-wrap: wrap; gap: 4px 14px; flex: 1 1 auto; min-width: 0; }
+nav.sections a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 700; padding: 4px 0; }
+nav.sections a:hover { color: var(--ink); }
+.langs { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+.langs button {
+  font: 700 13px/1 var(--font-body); letter-spacing: 0.04em; color: var(--muted);
+  background: none; border: 0; border-radius: 999px; padding: 7px 12px; cursor: pointer;
+}
+.langs button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+/* Intro */
+.intro { padding-block: 32px 8px; display: grid; gap: 10px; }
+h1 { font-family: var(--font-display); font-weight: 750; font-size: clamp(30px, 5vw, 46px); line-height: 1.05; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.lede { margin: 0; max-width: 62ch; color: var(--muted); font-size: 17px; }
+
+section.block { padding-block: 36px 8px; scroll-margin-top: 80px; }
+h2 { font-family: var(--font-display); font-weight: 750; font-size: 26px; letter-spacing: -0.01em; margin: 0 0 6px; text-wrap: balance; }
+.sub { margin: 0 0 18px; max-width: 68ch; color: var(--muted); }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 4px; }
+
+/* Rules strip */
+.rules { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 0; list-style: none; }
+.rules li { font-size: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; }
+.rules b { color: var(--accent); margin-right: 4px; }
+
+/* Board */
+.board-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 12px; }
+.progress { font-weight: 700; font-variant-numeric: tabular-nums; }
+.meter { flex: 1 1 160px; height: 8px; border-radius: 999px; background: var(--lane); overflow: hidden; max-width: 260px; }
+.meter span { display: block; height: 100%; width: 0; background: var(--ok); transition: width .3s ease; }
+.btn {
+  font: 700 14px/1 var(--font-body); border-radius: 8px; padding: 10px 14px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+.feedback {
+  min-height: 46px; margin: 0 0 12px; padding: 11px 14px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface); font-weight: 700; display: flex; align-items: center;
+}
+.feedback[data-kind="ok"] { border-color: var(--ok); color: var(--ok); }
+.feedback[data-kind="warn"] { border-color: var(--warn); color: var(--warn); }
+.feedback[data-kind="win"] { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--surface)); color: var(--ok); }
+
+.board-scroll { overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
+.board { display: grid; grid-template-columns: repeat(5, minmax(200px, 1fr)); gap: 12px; min-width: 1060px; }
+.lane { background: var(--lane); border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 240px; transition: outline-color .15s; outline: 2px dashed transparent; outline-offset: -2px; }
+.lane.over { outline-color: var(--accent); }
+.lane-head { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 4px 4px; }
+.lane-head h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.count.full { color: var(--warn); font-weight: 700; }
+
+.card {
+  background: var(--surface); border-radius: 8px; padding: 10px 10px 8px;
+  box-shadow: 0 1px 0 var(--line); border: 1px solid var(--line);
+  display: grid; gap: 8px; cursor: grab;
+}
+.card.dragging { opacity: .5; }
+.card.shake { animation: shake .35s; }
+@keyframes shake { 0%,100% { transform: none; } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.label { justify-self: start; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 8px 2px 6px; display: inline-flex; align-items: center; gap: 6px; background: color-mix(in srgb, var(--lc) 16%, transparent); }
+.label::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--lc); }
+.card-title { font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
+.card-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.chip {
+  font: 700 12px/1 var(--font-body); border-radius: 999px; padding: 6px 9px; cursor: pointer;
+  border: 1px dashed var(--line); background: none; color: var(--muted);
+}
+.chip[aria-pressed="true"] { border-style: solid; border-color: var(--ink); color: var(--ink); }
+.chip[aria-pressed="true"]::before { content: "✓ "; }
+.moves { margin-left: auto; display: flex; gap: 4px; }
+.move {
+  width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink); cursor: pointer; display: grid; place-items: center; padding: 0;
+}
+.move:disabled { opacity: .3; cursor: default; }
+.move svg { width: 14px; height: 14px; }
+
+/* Quiz */
+.quiz { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; max-width: 760px; display: grid; gap: 14px; }
+.quiz-top { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.q { font-size: 19px; font-weight: 700; margin: 0; }
+.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.opt {
+  text-align: left; font: 400 16px/1.4 var(--font-body); color: var(--ink); background: var(--bg);
+  border: 2px solid var(--line); border-radius: 8px; padding: 14px; cursor: pointer;
+}
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt:disabled { cursor: default; }
+.opt.right { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
+.opt.wrongpick { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, var(--surface)); }
+.why { margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--bg); }
+.why b.ok { color: var(--ok); }
+.why b.no { color: var(--bad); }
+.quiz-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Checklist */
+.check-wrap { max-width: 760px; display: grid; gap: 12px; }
+.checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.checklist label {
+  display: flex; gap: 12px; align-items: flex-start; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; cursor: pointer;
+}
+.checklist input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--ok); flex: none; }
+.checklist input:checked + span { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--ok); }
+
+/* Shortcuts */
+.keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+.key-row { display: flex; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; transition: border-color .15s, background .15s; }
+.key-row.hit { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+kbd {
+  font: 500 13px/1 var(--font-mono); min-width: 34px; text-align: center; padding: 7px 8px;
+  border-radius: 6px; border: 1px solid var(--line); border-bottom-width: 3px; background: var(--bg); color: var(--ink); white-space: nowrap;
+}
+.pressed { margin: 0 0 12px; font-size: 14px; color: var(--muted); min-height: 22px; }
+
+/* Video */
+.video { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 20px; align-items: start; }
+.video-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 8px; }
+.video-card h3 { margin: 0; font-size: 18px; }
+.video-card p { margin: 0; color: var(--muted); }
+.chapters { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 16px; }
+.chapters li { display: flex; gap: 10px; font-size: 15px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.chapters a { font-family: var(--font-mono); font-size: 13px; text-decoration: none; padding-top: 2px; font-variant-numeric: tabular-nums; }
+
+footer { padding-block: 40px 48px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+
+@media (max-width: 720px) {
+  .video { grid-template-columns: 1fr; }
+  section.block { padding-block: 28px 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="5" fill="var(--accent)"/><rect x="5" y="5" width="5" height="11" rx="1.5" fill="var(--accent-ink)"/><rect x="12" y="5" width="5" height="7" rx="1.5" fill="var(--accent-ink)"/></svg>
+      <span data-t="brand">Trello Class Lab</span>
+    </div>
+    <nav class="sections" aria-label="Sections">
+      <a href="#board" data-t="navBoard">Practice board</a>
+      <a href="#quiz" data-t="navQuiz">Card quiz</a>
+      <a href="#check" data-t="navCheck">Setup checklist</a>
+      <a href="#keys" data-t="navKeys">Shortcuts</a>
+      <a href="#video" data-t="navVideo">Video</a>
+    </nav>
+    <div class="langs" role="group" aria-label="Language">
+      <button type="button" id="lang-eu" data-lang="eu">EU</button>
+      <button type="button" id="lang-es" data-lang="es">ES</button>
+      <button type="button" id="lang-en" data-lang="en">EN</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap intro">
+    <h1 data-t="h1">Practise the class workflow before you open Trello</h1>
+    <p class="lede" data-t="lede">Move cards across a real class board, pick the better card in the quiz, and tick off your team's setup.</p>
+  </div>
+
+  <section class="block" id="board">
+    <div class="wrap">
+      <p class="eyebrow" data-t="eyeBoard">Try it</p>
+      <h2 data-t="navBoard">Practice board</h2>
+      <p class="sub" data-t="boardIntro">Get every card to Done. Drag the cards, or use the arrows. The board follows our class rules.</p>
+      <ul class="rules">
+        <li><b>1</b><span data-t="rule1">Owner and due date before Doing</span></li>
+        <li><b>2</b><span data-t="rule2">Doing holds 2 cards at most</span></li>
+        <li><b>3</b><span data-t="rule3">Nothing reaches Done without Review</span></li>
+        <li><b>4</b><span data-t="rule4">Move forward one list at a time</span></li>
+      </ul>
+      <div class="board-bar">
+        <span class="progress" id="progress"></span>
+        <div class="meter" aria-hidden="true"><span id="meter"></span></div>
+        <button type="button" class="btn" id="reset" data-t="reset">Reset board</button>
+      </div>
+      <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
+      <div class="board-scroll">
+        <div class="board" id="boardEl"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="quiz">
+    <div class="wrap">
+      <p class="eyebrow" data-t="eyeQuiz">Check yourself</p>
+      <h2 data-t="navQuiz">Card quiz</h2>
+      <p class="sub" data-t="quizIntro">Six situations from real team projects. Choose the better option.</p>
+      <div class="quiz" id="quizEl"></div>
+    </div>
+  </section>
+
+  <section class="block" id="check">
+    <div class="wrap">
+      <p class="eyebrow" data-t="eyeCheck">Before the first sprint</p>
+      <h2 data-t="navCheck">Setup checklist</h2>
+      <p class="sub" data-t="checkIntro">Tick each item when your team's board is ready. Ticks are saved in this browser only.</p>
+      <div class="check-wrap">
+        <div class="board-bar">
+          <span class="progress" id="checkProgress"></span>
+          <div class="meter" aria-hidden="true"><span id="checkMeter"></span></div>
+          <button type="button" class="btn" id="checkReset" data-t="clear">Clear ticks</button>
+        </div>
+        <ul class="checklist" id="checkEl"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="keys">
+    <div class="wrap">
+      <p class="eyebrow" data-t="eyeKeys">Work faster</p>
+      <h2 data-t="navKeys">Shortcuts</h2>
+      <p class="sub" data-t="keysIntro">Press any of these keys now to see what it does in Trello. Inside Trello, Shift + ? shows the full list.</p>
+      <p class="pressed" id="pressed" aria-live="polite"></p>
+      <div class="keys-grid" id="keysEl"></div>
+    </div>
+  </section>
+
+  <section class="block" id="video">
+    <div class="wrap">
+      <p class="eyebrow" data-t="eyeVideo">Watch</p>
+      <h2 data-t="navVideo">Video</h2>
+      <div class="video">
+        <div class="video-card">
+          <h3>How to use Trello - Tutorial for Beginners</h3>
+          <p data-t="videoMeta">Simpletivity (Scott Friesen) · September 2025 · about 21 minutes · English, with YouTube subtitles</p>
+          <p><a class="btn primary" style="display:inline-block;text-decoration:none" href="https://www.youtube.com/watch?v=WZRtsgwYVps" target="_blank" rel="noopener" data-t="watch">Watch on YouTube</a></p>
+        </div>
+        <ul class="chapters" id="chaptersEl"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span data-t="fullGuide">Full written guide:</span>
+    <a href="https://claude.ai/artifact/UEgDiNvqpbBiw2irUbrNkj" target="_blank" rel="noopener">Euskara</a>
+    <a href="https://claude.ai/artifact/BBSES3pnxdWpFT3FPBXmkp" target="_blank" rel="noopener">Español</a>
+    <a href="https://claude.ai/artifact/15GUxMcnXxonem3rLjJbYW" target="_blank" rel="noopener">English</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var T = {
+    en: {
+      brand: "Trello Class Lab", navBoard: "Practice board", navQuiz: "Card quiz", navCheck: "Setup checklist", navKeys: "Shortcuts", navVideo: "Video",
+      h1: "Practise the class workflow before you open Trello",
+      lede: "Move cards across a real class board, pick the better card in the quiz, and tick off your team's setup.",
+      eyeBoard: "Try it", eyeQuiz: "Check yourself", eyeCheck: "Before the first sprint", eyeKeys: "Work faster", eyeVideo: "Watch",
+      boardIntro: "Get every card to Done. Drag the cards, or use the arrows. The board follows our class rules.",
+      rule1: "Owner and due date before Doing", rule2: "Doing holds 2 cards at most", rule3: "Nothing reaches Done without Review", rule4: "Move forward one list at a time",
+      reset: "Reset board", owner: "Owner", due: "Due date", left: "Move left", right: "Move right",
+      lists: { backlog: "Backlog", todo: "To Do", doing: "Doing", review: "Review", done: "Done" },
+      progress: "{n} of {total} cards done",
+      start: "Start with the card in Review: a teammate checked it, so it can go to Done.",
+      oneStep: "Move cards forward one list at a time.",
+      needOwner: "Add an owner and a due date before you start this card.",
+      wip: "Doing already has 2 cards. Finish one before you start another.",
+      needReview: "A teammate has to review it first. Move it to Review.",
+      moved: "Moved to {list}.", back: "Sent back to {list}. That is fine: work often needs another pass.",
+      win: "Every card is done. That is the whole class workflow.",
+      labels: { research: "Research", front: "Frontend", back: "Backend", bug: "Bug", docs: "Docs" },
+      quizIntro: "Six situations from real team projects. Choose the better option.",
+      qOf: "Question {n} of {total}", score: "Score: {n}", next: "Next question", finish: "See result", restart: "Try again",
+      right: "Correct.", wrong: "Not quite.", result: "You got {n} of {total} right.",
+      checkIntro: "Tick each item when your team's board is ready. Ticks are saved in this browser only.",
+      checkProgress: "{n} of {total} ready", clear: "Clear ticks",
+      keysIntro: "Press any of these keys now to see what it does in Trello. Inside Trello, Shift + ? shows the full list.",
+      youPressed: "You pressed {k}: {a}",
+      videoMeta: "Simpletivity (Scott Friesen) · September 2025 · about 21 minutes · English, with YouTube subtitles",
+      watch: "Watch on YouTube", fullGuide: "Full written guide:"
+    },
+    es: {
+      brand: "Trello Class Lab", navBoard: "Tablero de práctica", navQuiz: "Test de tarjetas", navCheck: "Lista de comprobación", navKeys: "Atajos", navVideo: "Vídeo",
+      h1: "Practica el flujo de trabajo de clase antes de abrir Trello",
+      lede: "Mueve tarjetas por un tablero de clase real, elige la mejor tarjeta en el test y marca la configuración de tu equipo.",
+      eyeBoard: "Pruébalo", eyeQuiz: "Ponte a prueba", eyeCheck: "Antes del primer sprint", eyeKeys: "Trabaja más rápido", eyeVideo: "Mira",
+      boardIntro: "Lleva todas las tarjetas a Hecho. Arrástralas o usa las flechas. El tablero sigue nuestras normas de clase.",
+      rule1: "Responsable y fecha antes de En curso", rule2: "En curso admite 2 tarjetas como máximo", rule3: "Nada llega a Hecho sin Revisión", rule4: "Avanza de lista en lista",
+      reset: "Reiniciar tablero", owner: "Responsable", due: "Fecha", left: "Mover a la izquierda", right: "Mover a la derecha",
+      lists: { backlog: "Pendientes", todo: "Por hacer", doing: "En curso", review: "Revisión", done: "Hecho" },
+      progress: "{n} de {total} tarjetas hechas",
+      start: "Empieza por la tarjeta de Revisión: un compañero la ha revisado, así que puede pasar a Hecho.",
+      oneStep: "Avanza las tarjetas de lista en lista.",
+      needOwner: "Añade un responsable y una fecha antes de empezar esta tarjeta.",
+      wip: "En curso ya tiene 2 tarjetas. Termina una antes de empezar otra.",
+      needReview: "Primero tiene que revisarla un compañero. Pásala a Revisión.",
+      moved: "Movida a {list}.", back: "Devuelta a {list}. No pasa nada: el trabajo a menudo necesita otra vuelta.",
+      win: "Todas las tarjetas están hechas. Ese es el flujo de trabajo de clase completo.",
+      labels: { research: "Investigación", front: "Frontend", back: "Backend", bug: "Error", docs: "Documentación" },
+      quizIntro: "Seis situaciones de proyectos de equipo reales. Elige la mejor opción.",
+      qOf: "Pregunta {n} de {total}", score: "Puntos: {n}", next: "Siguiente pregunta", finish: "Ver resultado", restart: "Volver a empezar",
+      right: "Correcto.", wrong: "No exactamente.", result: "Has acertado {n} de {total}.",
+      checkIntro: "Marca cada punto cuando el tablero de tu equipo esté listo. Las marcas se guardan solo en este navegador.",
+      checkProgress: "{n} de {total} listos", clear: "Borrar marcas",
+      keysIntro: "Pulsa ahora cualquiera de estas teclas para ver qué hace en Trello. Dentro de Trello, Shift + ? muestra la lista completa.",
+      youPressed: "Has pulsado {k}: {a}",
+      videoMeta: "Simpletivity (Scott Friesen) · septiembre de 2025 · unos 21 minutos · en inglés, con subtítulos de YouTube",
+      watch: "Ver en YouTube", fullGuide: "Guía escrita completa:"
+    },
+    eu: {
+      brand: "Trello Class Lab", navBoard: "Praktika-taula", navQuiz: "Txartel-testa", navCheck: "Egiaztapen-zerrenda", navKeys: "Laster-teklak", navVideo: "Bideoa",
+      h1: "Landu klaseko lan-fluxua Trello ireki aurretik",
+      lede: "Mugitu txartelak benetako klase-taula batean, aukeratu txartel onena testean, eta markatu zure taldearen konfigurazioa.",
+      eyeBoard: "Probatu", eyeQuiz: "Jarri zeure burua proban", eyeCheck: "Lehen sprintaren aurretik", eyeKeys: "Azkarrago lan egin", eyeVideo: "Ikusi",
+      boardIntro: "Eraman txartel guztiak Eginda zerrendara. Arrastatu txartelak edo erabili geziak. Taulak gure klaseko arauak betetzen ditu.",
+      rule1: "Arduraduna eta data Egiten baino lehen", rule2: "Egiten zerrendan gehienez 2 txartel", rule3: "Ezer ez da Eginda-ra iristen berrikusi gabe", rule4: "Aurreratu zerrendaz zerrenda",
+      reset: "Taula berrabiarazi", owner: "Arduraduna", due: "Data", left: "Ezkerrera mugitu", right: "Eskuinera mugitu",
+      lists: { backlog: "Zain", todo: "Egiteko", doing: "Egiten", review: "Berrikusten", done: "Eginda" },
+      progress: "{total} txarteletik {n} eginda",
+      start: "Hasi Berrikusten dagoen txartelarekin: taldekide batek berrikusi du, beraz Eginda-ra pasa daiteke.",
+      oneStep: "Aurreratu txartelak zerrendaz zerrenda.",
+      needOwner: "Gehitu arduradun bat eta data bat txartel hau hasi aurretik.",
+      wip: "Egiten zerrendak 2 txartel ditu jada. Amaitu bat beste bat hasi aurretik.",
+      needReview: "Lehenik taldekide batek berrikusi behar du. Eraman Berrikusten zerrendara.",
+      moved: "{list} zerrendara mugituta.", back: "{list} zerrendara itzulita. Ez da ezer gertatzen: lanak askotan beste buelta bat behar du.",
+      win: "Txartel guztiak eginda daude. Hori da klaseko lan-fluxu osoa.",
+      labels: { research: "Ikerketa", front: "Frontend", back: "Backend", bug: "Akatsa", docs: "Dokumentazioa" },
+      quizIntro: "Benetako talde-proiektuetako sei egoera. Aukeratu aukera hobea.",
+      qOf: "{total} galderatik {n}.a", score: "Puntuak: {n}", next: "Hurrengo galdera", finish: "Emaitza ikusi", restart: "Berriro hasi",
+      right: "Zuzena.", wrong: "Ez zehazki.", result: "{total} galderatik {n} asmatu dituzu.",
+      checkIntro: "Markatu puntu bakoitza zure taldearen taula prest dagoenean. Markak nabigatzaile honetan bakarrik gordetzen dira.",
+      checkProgress: "{total} puntutik {n} prest", clear: "Markak ezabatu",
+      keysIntro: "Sakatu orain tekla hauetako edozein Trellon zer egiten duen ikusteko. Trellon bertan, Shift + ? sakatuta zerrenda osoa ikusten da.",
+      youPressed: "{k} sakatu duzu: {a}",
+      videoMeta: "Simpletivity (Scott Friesen) · 2025eko iraila · 21 minutu inguru · ingelesez, YouTube-ren azpitituluekin",
+      watch: "YouTube-n ikusi", fullGuide: "Idatzizko gida osoa:"
+    }
+  };
+
+  var LISTS = ["backlog", "todo", "doing", "review", "done"];
+
+  var CARDS = [
+    { id: "c1", label: "research", t: { en: "Choose a colour palette", es: "Elegir una paleta de colores", eu: "Kolore-paleta bat aukeratu" } },
+    { id: "c2", label: "front", t: { en: "Build the contact page", es: "Construir la página de contacto", eu: "Harremanetarako orria eraiki" } },
+    { id: "c3", label: "front", t: { en: "Add validation to the contact form", es: "Añadir validación al formulario de contacto", eu: "Harremanetarako formularioari balidazioa gehitu" } },
+    { id: "c4", label: "back", t: { en: "Save messages in the database", es: "Guardar los mensajes en la base de datos", eu: "Mezuak datu-basean gorde" } },
+    { id: "c5", label: "bug", t: { en: "Fix menu overlap on mobile", es: "Corregir el menú solapado en el móvil", eu: "Mugikorreko menuaren gainjartzea konpondu" } },
+    { id: "c6", label: "docs", t: { en: "Write the README", es: "Escribir el README", eu: "README-a idatzi" } }
+  ];
+
+  var START = {
+    pos: { c1: "review", c2: "doing", c3: "todo", c4: "backlog", c5: "backlog", c6: "todo" },
+    owner: { c1: true, c2: true },
+    due: { c1: true, c2: true }
+  };
+
+  var QUIZ = [
+    {
+      q: { en: "Which title is better?", es: "¿Qué título es mejor?", eu: "Zein izenburu da hobea?" },
+      opts: [
+        { en: "Form", es: "Formulario", eu: "Formularioa" },
+        { en: "Add validation to the contact form", es: "Añadir validación al formulario de contacto", eu: "Harremanetarako formularioari balidazioa gehitu" }
+      ], ok: 1,
+      why: { en: "Start with a verb and say exactly what changes.", es: "Empieza con un verbo y di exactamente qué cambia.", eu: "Hasi aditz batekin eta esan zehazki zer aldatzen den." }
+    },
+    {
+      q: { en: "Which card is the right size?", es: "¿Qué tarjeta tiene el tamaño adecuado?", eu: "Zein txartelek du tamaina egokia?" },
+      opts: [
+        { en: "Make the website", es: "Hacer la web", eu: "Webgunea egin" },
+        { en: "Build the header and navigation menu", es: "Construir la cabecera y el menú de navegación", eu: "Goiburua eta nabigazio-menua eraiki" }
+      ], ok: 1,
+      why: { en: "One card should fit in 1 to 3 days of work for one person.", es: "Una tarjeta debe caber en 1 a 3 días de trabajo de una persona.", eu: "Txartel batek pertsona baten 1-3 eguneko lana izan behar du." }
+    },
+    {
+      q: { en: "Which description is more useful?", es: "¿Qué descripción es más útil?", eu: "Zein deskribapen da erabilgarriagoa?" },
+      opts: [
+        { en: "Do the login.", es: "Hacer el login.", eu: "Saio-hasiera egin." },
+        { en: "Done when a wrong password shows an error and a correct one opens the dashboard.", es: "Hecho cuando una contraseña incorrecta muestra un error y una correcta abre el panel.", eu: "Eginda dago pasahitz okerrak errore bat erakusten duenean eta zuzenak panela irekitzen duenean." }
+      ], ok: 1,
+      why: { en: "The description says when the card counts as finished.", es: "La descripción dice cuándo se considera terminada la tarjeta.", eu: "Deskribapenak esaten du noiz dagoen txartela amaituta." }
+    },
+    {
+      q: { en: "You need a teammate's opinion on a task. What do you do?", es: "Necesitas la opinión de un compañero sobre una tarea. ¿Qué haces?", eu: "Taldekide baten iritzia behar duzu zeregin bati buruz. Zer egiten duzu?" },
+      opts: [
+        { en: "Comment on the card and @mention them", es: "Comentar en la tarjeta y mencionarle con @", eu: "Txartelean iruzkina idatzi eta @ bidez aipatu" },
+        { en: "Send them a private WhatsApp message", es: "Enviarle un WhatsApp privado", eu: "WhatsApp pribatu bat bidali" }
+      ], ok: 0,
+      why: { en: "The decision stays with the task, and the whole team can see it.", es: "La decisión queda junto a la tarea y todo el equipo la ve.", eu: "Erabakia zereginarekin geratzen da, eta talde osoak ikusten du." }
+    },
+    {
+      q: { en: "You want to share a 40 MB screen recording. What do you do?", es: "Quieres compartir una grabación de pantalla de 40 MB. ¿Qué haces?", eu: "40 MB-ko pantaila-grabaketa bat partekatu nahi duzu. Zer egiten duzu?" },
+      opts: [
+        { en: "Attach it to the card", es: "Adjuntarla a la tarjeta", eu: "Txartelari erantsi" },
+        { en: "Upload it to Drive and paste the link on the card", es: "Subirla a Drive y pegar el enlace en la tarjeta", eu: "Drive-ra igo eta esteka txartelean itsatsi" }
+      ], ok: 1,
+      why: { en: "The free plan allows 10 MB per file.", es: "El plan gratuito permite 10 MB por archivo.", eu: "Doako planak 10 MB onartzen ditu fitxategiko." }
+    },
+    {
+      q: { en: "A card is no longer needed. What do you do?", es: "Una tarjeta ya no hace falta. ¿Qué haces?", eu: "Txartel bat ez da gehiago behar. Zer egiten duzu?" },
+      opts: [
+        { en: "Archive it", es: "Archivarla", eu: "Artxibatu" },
+        { en: "Delete it", es: "Eliminarla", eu: "Ezabatu" }
+      ], ok: 0,
+      why: { en: "Archived cards can be restored. Deleting is permanent and erases the history.", es: "Las tarjetas archivadas se pueden recuperar. Eliminar es permanente y borra el historial.", eu: "Artxibatutako txartelak berreskura daitezke. Ezabatzea behin betikoa da eta historia ere ezabatzen du." }
+    }
+  ];
+
+  var CHECK = [
+    { en: "Team workspace created, with no more than 10 collaborators", es: "Espacio de trabajo del equipo creado, con 10 colaboradores como máximo", eu: "Taldearen lan-eremua sortuta, gehienez 10 kolaboratzailerekin" },
+    { en: "All teammates and the teacher invited and accepted", es: "Todo el equipo y el profesor invitados y con la invitación aceptada", eu: "Taldekide guztiak eta irakaslea gonbidatuta, eta gonbidapena onartuta" },
+    { en: "Board description explains the project goal and the label meanings", es: "La descripción del tablero explica el objetivo del proyecto y el significado de las etiquetas", eu: "Taularen deskribapenak proiektuaren helburua eta etiketen esanahia azaltzen ditu" },
+    { en: "Lists: Backlog, To Do, Doing, Review, Done", es: "Listas: Pendientes, Por hacer, En curso, Revisión, Hecho", eu: "Zerrendak: Zain, Egiteko, Egiten, Berrikusten, Eginda" },
+    { en: "At least 10 cards in Backlog, each starting with a verb", es: "Al menos 10 tarjetas en Pendientes, cada una empezando por un verbo", eu: "Gutxienez 10 txartel Zain zerrendan, bakoitza aditz batekin" },
+    { en: "Every card in To Do says when it counts as done", es: "Cada tarjeta en Por hacer dice cuándo está hecha", eu: "Egiteko zerrendako txartel bakoitzak noiz dagoen eginda esaten du" },
+    { en: "Labels agreed and applied", es: "Etiquetas acordadas y aplicadas", eu: "Etiketak adostuta eta aplikatuta" },
+    { en: "GitHub Power-Up enabled and linked to the team repository", es: "Power-Up de GitHub activado y vinculado al repositorio del equipo", eu: "GitHub Power-Up-a aktibatuta eta taldearen biltegiarekin lotuta" }
+  ];
+
+  var KEYS = [
+    { k: "b", label: "b", a: { en: "Search and open a board", es: "Buscar y abrir un tablero", eu: "Taula bat bilatu eta ireki" } },
+    { k: "f", label: "f", a: { en: "Open the card filter", es: "Abrir el filtro de tarjetas", eu: "Txartel-iragazkia ireki" } },
+    { k: "x", label: "x", a: { en: "Clear all filters", es: "Quitar todos los filtros", eu: "Iragazki guztiak kendu" } },
+    { k: "n", label: "n", a: { en: "New card below the one under your mouse", es: "Nueva tarjeta debajo de la que tienes bajo el ratón", eu: "Txartel berria saguaren azpikoaren azpian" } },
+    { k: "t", label: "t", a: { en: "Edit the card title", es: "Editar el título de la tarjeta", eu: "Txartelaren izenburua editatu" } },
+    { k: "j", label: "j", a: { en: "Select the card below", es: "Seleccionar la tarjeta de abajo", eu: "Beheko txartela hautatu" } },
+    { k: "k", label: "k", a: { en: "Select the card above", es: "Seleccionar la tarjeta de arriba", eu: "Goiko txartela hautatu" } },
+    { k: "c", label: "c", a: { en: "Archive the card under your mouse", es: "Archivar la tarjeta bajo el ratón", eu: "Saguaren azpiko txartela artxibatu" } },
+    { k: "z", label: "z", a: { en: "Undo the last action", es: "Deshacer la última acción", eu: "Azken ekintza desegin" } },
+    { k: "Z", label: "Shift + z", a: { en: "Redo what you undid", es: "Rehacer lo deshecho", eu: "Desegindakoa berregin" } },
+    { k: "?", label: "Shift + ?", a: { en: "Show every shortcut", es: "Ver todos los atajos", eu: "Laster-tekla guztiak ikusi" } }
+  ];
+
+  var CHAPTERS = [
+    ["0", "00:00", { en: "The board", es: "El tablero", eu: "Taula" }],
+    ["53", "00:53", { en: "Add and edit lists", es: "Añadir y editar listas", eu: "Zerrendak gehitu eta editatu" }],
+    ["123", "02:03", { en: "Add and edit cards", es: "Añadir y editar tarjetas", eu: "Txartelak gehitu eta editatu" }],
+    ["338", "05:38", { en: "Labels", es: "Etiquetas", eu: "Etiketak" }],
+    ["410", "06:50", { en: "Due dates", es: "Fechas de vencimiento", eu: "Epemugak" }],
+    ["492", "08:12", { en: "Checklists", es: "Checklists", eu: "Checklistak" }],
+    ["601", "10:01", { en: "Card members", es: "Miembros de una tarjeta", eu: "Txartel baten kideak" }],
+    ["705", "11:45", { en: "Attachments", es: "Adjuntos", eu: "Eranskinak" }],
+    ["873", "14:33", { en: "Comments", es: "Comentarios", eu: "Iruzkinak" }],
+    ["983", "16:23", { en: "Organise and move cards", es: "Organizar y mover tarjetas", eu: "Txartelak antolatu eta mugitu" }],
+    ["1095", "18:15", { en: "Search and filter", es: "Buscar y filtrar", eu: "Bilatu eta iragazi" }],
+    ["1180", "19:40", { en: "Add members to the board", es: "Añadir miembros al tablero", eu: "Kideak taulara gehitu" }]
+  ];
+
+  /* Storage: per-viewer convenience only */
+  function load(key, fallback) {
+    try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+  }
+  function save(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ }
+  }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function fmt(s, vars) { return s.replace(/\{(\w+)\}/g, function (_, k) { return vars[k]; }); }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+
+  var nav = (navigator.language || "en").slice(0, 2);
+  var lang = load("tcl-lang", nav === "eu" ? "eu" : nav === "es" ? "es" : "en");
+  if (!T[lang]) lang = "en";
+  var board = load("tcl-board", null) || clone(START);
+  var checks = load("tcl-checks", {});
+  var quiz = { i: 0, score: 0, picked: null };
+  var feedback = { key: "start", vars: {}, kind: "" };
+
+  function t(key) { return T[lang][key]; }
+
+  /* Static text */
+  function applyStatic() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-t]").forEach(function (n) {
+      var v = T[lang][n.getAttribute("data-t")];
+      if (typeof v === "string") n.textContent = v;
+    });
+    document.querySelectorAll(".langs button").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-lang") === lang));
+    });
+  }
+
+  /* Board */
+  var boardEl = document.getElementById("boardEl");
+  var fbEl = document.getElementById("feedback");
+
+  function say(key, vars, kind) { feedback = { key: key, vars: vars || {}, kind: kind || "" }; renderFeedback(); }
+  function renderFeedback() {
+    var vars = {};
+    Object.keys(feedback.vars).forEach(function (k) {
+      var v = feedback.vars[k];
+      vars[k] = (k === "list") ? T[lang].lists[v] : v;
+    });
+    fbEl.textContent = fmt(T[lang][feedback.key], vars);
+    fbEl.setAttribute("data-kind", feedback.kind);
+  }
+
+  function countIn(list) { return CARDS.filter(function (c) { return board.pos[c.id] === list; }).length; }
+
+  function tryMove(id, target) {
+    var from = board.pos[id];
+    if (from === target) return;
+    var fi = LISTS.indexOf(from), ti = LISTS.indexOf(target);
+    var ok = true, msg = null;
+    if (ti > fi) {
+      if (ti - fi > 1) { msg = target === "done" ? "needReview" : "oneStep"; ok = false; }
+      else if (target === "doing" && !(board.owner[id] && board.due[id])) { msg = "needOwner"; ok = false; }
+      else if (target === "doing" && countIn("doing") >= 2) { msg = "wip"; ok = false; }
+    } else if (target === "doing" && countIn("doing") >= 2) { msg = "wip"; ok = false; }
+    if (!ok) {
+      say(msg, {}, "warn");
+      var node = document.getElementById("card-" + id);
+      if (node) { node.classList.remove("shake"); void node.offsetWidth; node.classList.add("shake"); }
+      return;
+    }
+    board.pos[id] = target;
+    save("tcl-board", board);
+    if (countIn("done") === CARDS.length) say("win", {}, "win");
+    else if (ti < fi) say("back", { list: target }, "");
+    else say("moved", { list: target }, "ok");
+    renderBoard();
+    var moved = document.getElementById("card-" + id);
+    if (moved && document.activeElement && document.activeElement.closest && !document.activeElement.closest(".card")) return;
+  }
+
+  function chevron(dir) {
+    var ns = "http://www.w3.org/2000/svg";
+    var s = document.createElementNS(ns, "svg");
+    s.setAttribute("viewBox", "0 0 14 14"); s.setAttribute("aria-hidden", "true");
+    var p = document.createElementNS(ns, "path");
+    p.setAttribute("d", dir < 0 ? "M9 2 4 7l5 5" : "M5 2l5 5-5 5");
+    p.setAttribute("fill", "none"); p.setAttribute("stroke", "currentColor"); p.setAttribute("stroke-width", "2");
+    p.setAttribute("stroke-linecap", "round"); p.setAttribute("stroke-linejoin", "round");
+    s.appendChild(p); return s;
+  }
+
+  function renderBoard() {
+    var focusId = document.activeElement && document.activeElement.id;
+    boardEl.innerHTML = "";
+    LISTS.forEach(function (list) {
+      var lane = el("div", "lane");
+      lane.setAttribute("data-list", list);
+      var head = el("div", "lane-head");
+      head.appendChild(el("h3", null, T[lang].lists[list]));
+      var n = countIn(list);
+      var cnt = el("span", "count", list === "doing" ? n + " / 2" : String(n));
+      if (list === "doing" && n >= 2) cnt.classList.add("full");
+      head.appendChild(cnt);
+      lane.appendChild(head);
+
+      lane.addEventListener("dragover", function (e) { e.preventDefault(); lane.classList.add("over"); });
+      lane.addEventListener("dragleave", function () { lane.classList.remove("over"); });
+      lane.addEventListener("drop", function (e) {
+        e.preventDefault(); lane.classList.remove("over");
+        var id = e.dataTransfer.getData("text/plain");
+        if (id) tryMove(id, list);
+      });
+
+      CARDS.filter(function (c) { return board.pos[c.id] === list; }).forEach(function (c) {
+        var card = el("article", "card");
+        card.id = "card-" + c.id;
+        card.draggable = true;
+        card.addEventListener("dragstart", function (e) { e.dataTransfer.setData("text/plain", c.id); card.classList.add("dragging"); });
+        card.addEventListener("dragend", function () { card.classList.remove("dragging"); });
+
+        var lab = el("span", "label", T[lang].labels[c.label]);
+        lab.style.setProperty("--lc", "var(--l-" + c.label + ")");
+        card.appendChild(lab);
+        card.appendChild(el("div", "card-title", c.t[lang]));
+
+        var tools = el("div", "card-tools");
+        ["owner", "due"].forEach(function (f) {
+          var b = el("button", "chip", T[lang][f]);
+          b.type = "button";
+          b.id = "chip-" + f + "-" + c.id;
+          b.setAttribute("aria-pressed", String(!!board[f][c.id]));
+          b.addEventListener("click", function () {
+            board[f][c.id] = !board[f][c.id];
+            save("tcl-board", board);
+            renderBoard();
+          });
+          tools.appendChild(b);
+        });
+        var moves = el("div", "moves");
+        var i = LISTS.indexOf(list);
+        [-1, 1].forEach(function (d) {
+          var m = el("button", "move");
+          m.type = "button";
+          m.id = "move-" + (d < 0 ? "l" : "r") + "-" + c.id;
+          m.setAttribute("aria-label", T[lang][d < 0 ? "left" : "right"] + ": " + c.t[lang]);
+          m.appendChild(chevron(d));
+          if ((d < 0 && i === 0) || (d > 0 && i === LISTS.length - 1)) m.disabled = true;
+          m.addEventListener("click", function () { tryMove(c.id, LISTS[i + d]); });
+          moves.appendChild(m);
+        });
+        tools.appendChild(moves);
+        card.appendChild(tools);
+        lane.appendChild(card);
+      });
+      boardEl.appendChild(lane);
+    });
+
+    var done = countIn("done");
+    document.getElementById("progress").textContent = fmt(t("progress"), { n: done, total: CARDS.length });
+    document.getElementById("meter").style.width = (done / CARDS.length * 100) + "%";
+    if (focusId) { var f = document.getElementById(focusId); if (f && !f.disabled) f.focus({ preventScroll: true }); }
+  }
+
+  document.getElementById("reset").addEventListener("click", function () {
+    board = clone(START); save("tcl-board", board); say("start", {}, ""); renderBoard();
+  });
+
+  /* Quiz */
+  var quizEl = document.getElementById("quizEl");
+  function renderQuiz() {
+    quizEl.innerHTML = "";
+    var total = QUIZ.length;
+    if (quiz.i >= total) {
+      quizEl.appendChild(el("p", "q", fmt(t("result"), { n: quiz.score, total: total })));
+      var acts = el("div", "quiz-actions");
+      var r = el("button", "btn primary", t("restart")); r.type = "button"; r.id = "quiz-restart";
+      r.addEventListener("click", function () { quiz = { i: 0, score: 0, picked: null }; renderQuiz(); });
+      acts.appendChild(r); quizEl.appendChild(acts);
+      return;
+    }
+    var item = QUIZ[quiz.i];
+    var top = el("div", "quiz-top");
+    top.appendChild(el("span", null, fmt(t("qOf"), { n: quiz.i + 1, total: total })));
+    top.appendChild(el("span", null, fmt(t("score"), { n: quiz.score })));
+    quizEl.appendChild(top);
+    quizEl.appendChild(el("p", "q", item.q[lang]));
+    var opts = el("div", "options");
+    item.opts.forEach(function (o, idx) {
+      var b = el("button", "opt", o[lang]); b.type = "button"; b.id = "quiz-opt-" + idx;
+      if (quiz.picked !== null) {
+        b.disabled = true;
+        if (idx === item.ok) b.classList.add("right");
+        else if (idx === quiz.picked) b.classList.add("wrongpick");
+      }
+      b.addEventListener("click", function () {
+        if (quiz.picked !== null) return;
+        quiz.picked = idx;
+        if (idx === item.ok) quiz.score++;
+        renderQuiz();
+        var nx = document.getElementById("quiz-next"); if (nx) nx.focus({ preventScroll: true });
+      });
+      opts.appendChild(b);
+    });
+    quizEl.appendChild(opts);
+    if (quiz.picked !== null) {
+      var why = el("p", "why");
+      var good = quiz.picked === item.ok;
+      var b = el("b", good ? "ok" : "no", (good ? t("right") : t("wrong")) + " ");
+      why.appendChild(b);
+      why.appendChild(document.createTextNode(item.why[lang]));
+      quizEl.appendChild(why);
+      var acts2 = el("div", "quiz-actions");
+      var nb = el("button", "btn primary", quiz.i === total - 1 ? t("finish") : t("next")); nb.type = "button"; nb.id = "quiz-next";
+      nb.addEventListener("click", function () { quiz.i++; quiz.picked = null; renderQuiz(); });
+      acts2.appendChild(nb); quizEl.appendChild(acts2);
+    }
+  }
+
+  /* Checklist */
+  var checkEl = document.getElementById("checkEl");
+  function renderChecks() {
+    checkEl.innerHTML = "";
+    var n = 0;
+    CHECK.forEach(function (c, i) {
+      var li = el("li");
+      var lab = el("label");
+      var box = document.createElement("input");
+      box.type = "checkbox"; box.id = "check-" + i; box.checked = !!checks[i];
+      if (box.checked) n++;
+      box.addEventListener("change", function () { checks[i] = box.checked; save("tcl-checks", checks); renderChecks(); document.getElementById("check-" + i).focus({ preventScroll: true }); });
+      lab.appendChild(box);
+      lab.appendChild(el("span", null, c[lang]));
+      li.appendChild(lab); checkEl.appendChild(li);
+    });
+    document.getElementById("checkProgress").textContent = fmt(t("checkProgress"), { n: n, total: CHECK.length });
+    document.getElementById("checkMeter").style.width = (n / CHECK.length * 100) + "%";
+  }
+  document.getElementById("checkReset").addEventListener("click", function () { checks = {}; save("tcl-checks", checks); renderChecks(); });
+
+  /* Shortcuts */
+  var keysEl = document.getElementById("keysEl");
+  var pressedEl = document.getElementById("pressed");
+  function renderKeys() {
+    keysEl.innerHTML = "";
+    KEYS.forEach(function (k, i) {
+      var row = el("div", "key-row"); row.id = "key-" + i;
+      row.appendChild(el("kbd", null, k.label));
+      row.appendChild(el("span", null, k.a[lang]));
+      keysEl.appendChild(row);
+    });
+  }
+  var hitTimer = null;
+  document.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var tag = (e.target && e.target.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    var idx = -1;
+    KEYS.forEach(function (k, i) { if (k.k === e.key) idx = i; });
+    if (idx < 0) return;
+    document.querySelectorAll(".key-row.hit").forEach(function (r) { r.classList.remove("hit"); });
+    var row = document.getElementById("key-" + idx);
+    row.classList.add("hit");
+    pressedEl.textContent = fmt(t("youPressed"), { k: KEYS[idx].label, a: KEYS[idx].a[lang] });
+    clearTimeout(hitTimer);
+    hitTimer = setTimeout(function () { row.classList.remove("hit"); }, 1600);
+  });
+
+  /* Video chapters */
+  function renderChapters() {
+    var ul = document.getElementById("chaptersEl"); ul.innerHTML = "";
+    CHAPTERS.forEach(function (c) {
+      var li = el("li");
+      var a = el("a", null, c[1]);
+      a.href = "https://www.youtube.com/watch?v=WZRtsgwYVps&t=" + c[0] + "s";
+      a.target = "_blank"; a.rel = "noopener";
+      li.appendChild(a); li.appendChild(el("span", null, c[2][lang]));
+      ul.appendChild(li);
+    });
+  }
+
+  function renderAll() {
+    applyStatic(); renderFeedback(); renderBoard(); renderQuiz(); renderChecks(); renderKeys(); renderChapters();
+  }
+
+  document.querySelectorAll(".langs button").forEach(function (b) {
+    b.addEventListener("click", function () { lang = b.getAttribute("data-lang"); save("tcl-lang", lang); renderAll(); });
+  });
+
+  if (countIn("done") === CARDS.length) feedback = { key: "win", vars: {}, kind: "win" };
+  renderAll();
+})();
+</script>
+
+</body></html>
